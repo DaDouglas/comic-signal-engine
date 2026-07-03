@@ -1,6 +1,3 @@
-import os
-print("APP CWD:", os.getcwd())
-print("FILES HERE:", os.listdir("."))
 
 from flask import Flask, request, render_template_string
 from scoring import score_comic
