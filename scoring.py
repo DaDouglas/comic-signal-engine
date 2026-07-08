@@ -1,39 +1,44 @@
 import pandas as pd
 
-# load artifact once
+# Load artifact once
 df = pd.read_csv("comics_with_clusters_v1.csv")
 df.columns = df.columns.str.strip()
 
-# Optional: label clusters (you can refine these once you inspect summaries)
 CLUSTER_NAMES = {
     0: "Mass-market / disposable-ish",
     2: "Legacy-dense / collectible-ish",
 }
 
+
+def normalize_query(query: str) -> str:
+    return (query or "").strip()
+
+
 def label_from_cluster(cluster_id: int) -> str:
-    # v1 proxy output (not a real market probability yet)
     if cluster_id == 2:
         return "High (proxy)"
     if cluster_id == 0:
         return "Low (proxy)"
     return "Medium (proxy)"
 
-def score_comic(query: str):
-    query = (query or "").strip()
-    if not query:
-        return None
 
-    # search comic_name first
+def find_matches(query: str):
     hits = df[df["comic_name"].astype(str).str.contains(query, case=False, na=False)]
 
-    # fallback to issue_title
     if len(hits) == 0:
         hits = df[df["issue_title"].astype(str).str.contains(query, case=False, na=False)]
 
+    return hits
+
+
+def choose_best_match(hits):
     if len(hits) == 0:
         return None
 
-    row = hits.iloc[0].to_dict()
+    return hits.iloc[0].to_dict()
+
+
+def build_result(row: dict) -> dict:
     cluster_id = int(row.get("cluster", -1))
 
     return {
@@ -44,3 +49,18 @@ def score_comic(query: str):
         "cluster_name": CLUSTER_NAMES.get(cluster_id, "Unlabeled cluster"),
         "label": label_from_cluster(cluster_id),
     }
+
+
+def score_comic(query: str):
+    query = normalize_query(query)
+
+    if not query:
+        return None
+
+    hits = find_matches(query)
+    row = choose_best_match(hits)
+
+    if row is None:
+        return None
+
+    return build_result(row)
